@@ -66,4 +66,8 @@ class Debt {
     }
     return totalAmount.subtract(paid);
   }
+
+  bool isSettled() {
+    return status == DebtStatus.settled || calculateRemainingAmount().minorUnits <= BigInt.zero;
+  }
 }

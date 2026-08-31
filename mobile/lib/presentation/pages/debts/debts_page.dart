@@ -5,15 +5,14 @@ import 'package:mouin/domain/value_objects/types.dart';
 import 'package:mouin/domain/value_objects/money.dart';
 import 'package:mouin/presentation/bloc/debt_bloc.dart';
 import '../../theme/tokens/mouin_colors.dart';
-import '../../theme/tokens/mouin_dimens.dart';
 import '../../theme/tokens/mouin_spacing.dart';
 import '../../widgets/common/mouin_card.dart';
 import '../../widgets/common/mouin_button.dart';
 import '../../widgets/common/mouin_search_field.dart';
-import '../../widgets/common/mouin_section_header.dart';
 import '../../widgets/states/mouin_states.dart';
 import '../../widgets/domain/domain_badges.dart';
 import '../../widgets/quick_capture/quick_capture_bottom_sheet.dart';
+import '../../widgets/quick_capture/quick_capture_types.dart';
 
 class DebtsPage extends StatefulWidget {
   final DebtBloc debtBloc;
@@ -46,6 +45,18 @@ class _DebtsPageState extends State<DebtsPage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _openAddDebtSheet() {
+    QuickCaptureBottomSheet.show(
+      context,
+      workspaceId: widget.workspaceId,
+      debtBloc: widget.debtBloc,
+      initialType: QuickCaptureType.debt,
+      onSaved: (type, title) {
+        widget.debtBloc.loadDebts(widget.workspaceId);
+      },
+    );
   }
 
   void _showRecordPaymentDialog(Debt debt) {
@@ -177,11 +188,21 @@ class _DebtsPageState extends State<DebtsPage> {
         title: const Text('دفتر الديون والالتزامات'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'تسجيل دين',
+            onPressed: widget.onAddDebt ?? _openAddDebtSheet,
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'تحديث الديون',
             onPressed: () => widget.debtBloc.loadDebts(widget.workspaceId),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: widget.onAddDebt ?? _openAddDebtSheet,
+        icon: const Icon(Icons.add),
+        label: const Text('تسجيل دين'),
       ),
       body: StreamBuilder<DebtState>(
         stream: widget.debtBloc.state,
@@ -207,13 +228,7 @@ class _DebtsPageState extends State<DebtsPage> {
               title: 'دفتر الديون نظيف ومكتمل!',
               subtitle: 'لا توجد ديون أو مطالبات مسجلة حالياً.',
               actionLabel: 'تسجيل دين جديد',
-              onAction: widget.onAddDebt ?? () {
-                QuickCaptureBottomSheet.show(
-                  context,
-                  workspaceId: widget.workspaceId,
-                  debtBloc: widget.debtBloc,
-                );
-              },
+              onAction: widget.onAddDebt ?? _openAddDebtSheet,
             );
           }
 
@@ -243,27 +258,21 @@ class _DebtsPageState extends State<DebtsPage> {
                 child: Row(
                   children: [
                     ChoiceChip(
-                      label: const Text('الكل'),
+                      label: Text('الكل (${allDebts.length})'),
                       selected: _filter == 'all',
-                      onSelected: (val) {
-                        if (val) setState(() => _filter = 'all');
-                      },
+                      onSelected: (val) => setState(() => _filter = 'all'),
                     ),
-                    const SizedBox(width: MouinSpacing.sm),
+                    const SizedBox(width: 8),
                     ChoiceChip(
-                      label: const Text('🟢 لي عنده'),
+                      label: Text('لي عندهم (${allDebts.where((d) => d.debtType == DebtType.receivable).length})'),
                       selected: _filter == 'receivable',
-                      onSelected: (val) {
-                        if (val) setState(() => _filter = 'receivable');
-                      },
+                      onSelected: (val) => setState(() => _filter = 'receivable'),
                     ),
-                    const SizedBox(width: MouinSpacing.sm),
+                    const SizedBox(width: 8),
                     ChoiceChip(
-                      label: const Text('🔴 عليّ له'),
+                      label: Text('عليّ لهم (${allDebts.where((d) => d.debtType == DebtType.payable).length})'),
                       selected: _filter == 'payable',
-                      onSelected: (val) {
-                        if (val) setState(() => _filter = 'payable');
-                      },
+                      onSelected: (val) => setState(() => _filter = 'payable'),
                     ),
                   ],
                 ),
@@ -271,13 +280,14 @@ class _DebtsPageState extends State<DebtsPage> {
               const SizedBox(height: MouinSpacing.xs),
               Expanded(
                 child: filtered.isEmpty
-                    ? const Center(child: Text('لا توجد نتائج تطابق الفلتر المحدد'))
+                    ? const Center(child: Text('لا توجد ديون مطابقة لمعايير البحث'))
                     : ListView.builder(
                         itemCount: filtered.length,
                         itemBuilder: (ctx, index) {
                           final debt = filtered[index];
-                          final remaining = debt.calculateRemainingAmount();
                           final isReceivable = debt.debtType == DebtType.receivable;
+                          final isSettled = debt.isSettled();
+                          final remaining = debt.calculateRemainingAmount();
 
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: MouinSpacing.md, vertical: 4),
@@ -288,14 +298,30 @@ class _DebtsPageState extends State<DebtsPage> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        debt.personId,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            isReceivable ? Icons.arrow_downward : Icons.arrow_upward,
+                                            color: isReceivable ? MouinColors.debtReceivable : MouinColors.debtPayable,
+                                            size: 18,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            debt.personId,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                          ),
+                                        ],
                                       ),
-                                      DirectionalBadge(debtType: debt.debtType),
+                                      if (isSettled)
+                                        const Chip(
+                                          label: Text('مكتمل السداد', style: TextStyle(fontSize: 11, color: Colors.green)),
+                                          backgroundColor: Color(0xFFDCFCE7),
+                                        )
+                                      else
+                                        DirectionalBadge(debtType: debt.debtType),
                                     ],
                                   ),
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: 8),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [

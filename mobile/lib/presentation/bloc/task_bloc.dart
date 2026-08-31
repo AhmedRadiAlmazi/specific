@@ -71,6 +71,31 @@ class TaskBloc {
     }
   }
 
+  Future<void> updateTask(
+    String workspaceId,
+    String itemId, {
+    String? title,
+    String? summary,
+    Priority? priority,
+    DateTime? dueDate,
+    TaskStatus? status,
+  }) async {
+    final res = await useCases.updateTask(
+      workspaceId: workspaceId,
+      itemId: itemId,
+      title: title,
+      summary: summary,
+      priority: priority,
+      dueDate: dueDate,
+      status: status,
+    );
+    if (res.isSuccess) {
+      await loadTasks(workspaceId);
+    } else {
+      _emit(TaskError(res.failure.message));
+    }
+  }
+
   Future<void> deleteTask(String workspaceId, String itemId) async {
     final cmd = SoftDeleteItemCommand(workspaceId: workspaceId, itemId: itemId);
     final res = await useCases.softDelete(cmd);

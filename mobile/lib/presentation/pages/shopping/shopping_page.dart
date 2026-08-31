@@ -1,6 +1,5 @@
 // Shopping & Checklists Dedicated Sub-Screen — مشروع «مُعين» (Mouin)
 import 'package:flutter/material.dart';
-import 'package:mouin/domain/entities/item.dart';
 import 'package:mouin/domain/value_objects/types.dart';
 import 'package:mouin/application/commands/item_commands.dart';
 import 'package:mouin/application/use_cases/item_use_cases.dart';
@@ -47,7 +46,6 @@ class ShoppingPage extends StatefulWidget {
 class _ShoppingPageState extends State<ShoppingPage> {
   final TextEditingController _addItemController = TextEditingController();
   List<ShoppingItemModel> _items = [];
-  bool _isLoading = false;
 
   @override
   void initState() {

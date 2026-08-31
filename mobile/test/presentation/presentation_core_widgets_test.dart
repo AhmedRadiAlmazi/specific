@@ -7,9 +7,6 @@ import 'package:mouin/presentation/theme/tokens/mouin_dimens.dart';
 import 'package:mouin/presentation/widgets/common/mouin_card.dart';
 import 'package:mouin/presentation/widgets/common/mouin_button.dart';
 import 'package:mouin/presentation/widgets/common/mouin_icon_button.dart';
-import 'package:mouin/presentation/widgets/common/mouin_badge.dart';
-import 'package:mouin/presentation/widgets/common/mouin_section_header.dart';
-import 'package:mouin/presentation/widgets/common/mouin_search_field.dart';
 import 'package:mouin/presentation/widgets/states/mouin_states.dart';
 import 'package:mouin/presentation/widgets/domain/domain_badges.dart';
 

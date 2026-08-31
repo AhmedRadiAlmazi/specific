@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:mouin/domain/value_objects/types.dart';
 import '../../theme/tokens/mouin_colors.dart';
-import '../../theme/tokens/mouin_radii.dart';
 import '../../theme/tokens/mouin_spacing.dart';
 import '../common/mouin_card.dart';
 import '../common/mouin_badge.dart';

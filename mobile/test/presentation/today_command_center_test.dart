@@ -9,9 +9,7 @@ import 'package:mouin/presentation/theme/mouin_theme.dart';
 import 'package:mouin/presentation/widgets/today/today_header.dart';
 import 'package:mouin/presentation/widgets/today/today_urgent_section.dart';
 import 'package:mouin/presentation/widgets/today/today_timeline.dart';
-import 'package:mouin/presentation/widgets/today/today_timeline_entry.dart';
 import 'package:mouin/presentation/widgets/today/upcoming_48h_section.dart';
-import 'package:mouin/presentation/widgets/quick_capture/quick_capture_types.dart';
 
 void main() {
   group('Phase 5.3 Today Header & Date Helper Tests', () {

@@ -23,9 +23,13 @@ class Money {
 
   factory Money.zero({String currency = 'YER'}) => Money._(BigInt.zero, currency);
 
+  bool get isZero => minorUnits == BigInt.zero;
+  bool get isPositive => minorUnits > BigInt.zero;
+  bool get isNegative => minorUnits < BigInt.zero;
+
   Money add(Money other) {
     if (currency != other.currency) {
-      throw ArgumentError('Cannot add money of different currencies: \$currency != \${other.currency}');
+      throw ArgumentError('Cannot add money of different currencies: $currency != ${other.currency}');
     }
     return Money._(minorUnits + other.minorUnits, currency, precision: precision);
   }

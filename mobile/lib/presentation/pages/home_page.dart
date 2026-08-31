@@ -4,7 +4,6 @@ import 'package:mouin/core/session/session_manager.dart';
 import 'package:mouin/domain/entities/item.dart';
 import 'package:mouin/domain/entities/debt.dart';
 import 'package:mouin/domain/value_objects/types.dart';
-import 'package:mouin/domain/value_objects/money.dart';
 import 'package:mouin/infrastructure/network/remote_sync_api.dart';
 import 'package:mouin/presentation/bloc/task_bloc.dart';
 import 'package:mouin/presentation/bloc/debt_bloc.dart';
@@ -26,6 +25,8 @@ import 'package:mouin/presentation/pages/debts/debts_page.dart';
 import 'package:mouin/presentation/pages/documents/documents_page.dart';
 import 'package:mouin/presentation/pages/notes/notes_page.dart';
 import 'package:mouin/presentation/pages/shopping/shopping_page.dart';
+import 'package:mouin/presentation/pages/search/unified_search_page.dart';
+import 'package:mouin/presentation/widgets/tasks/task_detail_bottom_sheet.dart';
 
 class HomePage extends StatefulWidget {
   final TaskBloc taskBloc;
@@ -64,6 +65,23 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _openUnifiedSearch() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: UnifiedSearchPage(
+            taskBloc: widget.taskBloc,
+            debtBloc: widget.debtBloc,
+            syncBloc: widget.syncBloc,
+            workspaceId: _currentWorkspaceId,
+          ),
+        ),
+      ),
+    );
   }
 
   void _openQuickCapture() {
@@ -182,44 +200,55 @@ class _HomePageState extends State<HomePage> {
                       onDismissed: (_) {
                         widget.taskBloc.deleteTask(_currentWorkspaceId, item.id);
                       },
-                      child: MouinCard(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Row(
-                          children: [
-                            Checkbox(
-                              value: isCompleted,
-                              onChanged: (val) {
-                                if (val == true) {
-                                  widget.taskBloc.completeTask(_currentWorkspaceId, item.id);
-                                }
-                              },
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.title,
-                                    style: TextStyle(
-                                      decoration: isCompleted ? TextDecoration.lineThrough : null,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'المعرف: ${item.id.substring(0, 8)}... | ${isCompleted ? "منجز" : "قيد التنفيذ"}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          TaskDetailBottomSheet.show(
+                            context,
+                            task: item,
+                            workspaceId: _currentWorkspaceId,
+                            taskBloc: widget.taskBloc,
+                          );
+                        },
+                        child: MouinCard(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: [
+                              Checkbox(
+                                value: isCompleted,
+                                onChanged: (val) {
+                                  if (val == true) {
+                                    widget.taskBloc.completeTask(_currentWorkspaceId, item.id);
+                                  }
+                                },
                               ),
-                            ),
-                            PriorityBadge(priority: priority),
-                          ],
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.title,
+                                      style: TextStyle(
+                                        decoration: isCompleted ? TextDecoration.lineThrough : null,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'المعرف: ${item.id.substring(0, 8)}... | ${isCompleted ? "منجز" : "قيد التنفيذ"}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              PriorityBadge(priority: priority),
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -350,9 +379,7 @@ class _HomePageState extends State<HomePage> {
               return Column(
                 children: [
                   TodayHeader(
-                    onSearchPressed: () {
-                      setState(() => _navIndex = 1);
-                    },
+                    onSearchPressed: _openUnifiedSearch,
                     onSyncPressed: _triggerSync,
                     onLogoutPressed: _logout,
                   ),

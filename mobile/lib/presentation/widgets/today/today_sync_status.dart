@@ -32,13 +32,17 @@ class TodaySyncStatus extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2, color: MouinColors.primary),
               ),
               SizedBox(width: 8),
-              Text(
-                'جاري المزامنة الحية مع السحاب...',
-                style: TextStyle(fontSize: 12, color: MouinColors.primary, fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  'جاري المزامنة الحية مع السحاب...',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: MouinColors.primary, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           );
-        } else if (state is SyncFailure) {
+        } else if (state is SyncFailed) {
           statusContent = Row(
             children: [
               const Icon(Icons.cloud_off, size: 16, color: MouinColors.warning),
@@ -46,13 +50,15 @@ class TodaySyncStatus extends StatelessWidget {
               Expanded(
                 child: Text(
                   'أنت تعمل بدون اتصال — بياناتك محفوظة محلياً',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 12, color: Colors.orange.shade800, fontWeight: FontWeight.bold),
                 ),
               ),
               if (onTriggerSync != null)
                 GestureDetector(
                   onTap: onTriggerSync,
-                  child: Text(
+                  child: const Text(
                     'إعادة المحاولة',
                     style: TextStyle(fontSize: 12, color: MouinColors.primary, fontWeight: FontWeight.bold),
                   ),
@@ -65,9 +71,13 @@ class TodaySyncStatus extends StatelessWidget {
             children: const [
               Icon(Icons.check_circle, size: 15, color: MouinColors.success),
               SizedBox(width: 6),
-              Text(
-                'متصل ومحدث بالكامل محلياً وسحابياً',
-                style: TextStyle(fontSize: 12, color: MouinColors.success, fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  'متصل ومحدث بالكامل محلياً وسحابياً',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: MouinColors.success, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           );

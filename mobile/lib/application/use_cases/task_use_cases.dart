@@ -93,6 +93,67 @@ class TaskUseCases {
     return Result.success(updatedItem);
   }
 
+  Future<Result<Item, Failure>> updateTask({
+    required String workspaceId,
+    required String itemId,
+    String? title,
+    String? summary,
+    Priority? priority,
+    DateTime? dueDate,
+    TaskStatus? status,
+  }) async {
+    final getRes = await itemRepository.getById(workspaceId, itemId);
+    if (!getRes.isSuccess) return Result.failure(getRes.failure);
+    final item = getRes.value;
+    if (item == null || item.isDeleted) {
+      return const Result.failure(NotFoundFailure('Task not found'));
+    }
+
+    final updatedTaskDetail = item.taskDetail?.copyWith(
+      priority: priority ?? item.taskDetail?.priority,
+      dueDate: dueDate ?? item.taskDetail?.dueDate,
+      status: status ?? item.taskDetail?.status,
+      completedAt: status == TaskStatus.completed
+          ? (item.taskDetail?.completedAt ?? DateTime.now().toUtc())
+          : (status == TaskStatus.pending ? null : item.taskDetail?.completedAt),
+    );
+
+    final updatedItem = Item(
+      id: item.id,
+      workspaceId: item.workspaceId,
+      itemType: item.itemType,
+      title: title ?? item.title,
+      summary: summary ?? item.summary,
+      privacy: item.privacy,
+      taskDetail: updatedTaskDetail,
+      createdAt: item.createdAt,
+      updatedAt: DateTime.now().toUtc(),
+      entityVersion: item.entityVersion + 1,
+    );
+
+    final saveRes = await itemRepository.save(updatedItem);
+    if (!saveRes.isSuccess) return Result.failure(saveRes.failure);
+
+    await outboxRepository.enqueue(
+      operationId: UuidV7.generate(),
+      entityType: 'item',
+      entityId: item.id,
+      operation: 'update',
+      payload: {
+        'id': item.id,
+        'title': updatedItem.title,
+        'summary': updatedItem.summary,
+        'priority': updatedTaskDetail?.priority.name,
+        'due_date': updatedTaskDetail?.dueDate?.toIso8601String(),
+        'status': updatedTaskDetail?.status.name,
+        'entity_version': updatedItem.entityVersion,
+      },
+      baseVersion: item.entityVersion,
+    );
+
+    return Result.success(updatedItem);
+  }
+
   Future<Result<void, Failure>> softDelete(SoftDeleteItemCommand cmd) async {
     final getRes = await itemRepository.getById(cmd.workspaceId, cmd.itemId);
     if (!getRes.isSuccess) return Result.failure(getRes.failure);
