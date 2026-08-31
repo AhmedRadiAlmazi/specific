@@ -16,6 +16,7 @@ class LocalItemRepository implements IItemRepository {
 
   @override
   Future<Result<void, Failure>> save(Item item) async {
+    // 1. Upsert root item
     db.items[item.id] = {
       'id': item.id,
       'workspace_id': item.workspaceId,
@@ -30,6 +31,7 @@ class LocalItemRepository implements IItemRepository {
       'entity_version': item.entityVersion,
     };
 
+    // 2. Upsert subtype details
     if (item.taskDetail != null) {
       db.tasks[item.id] = {
         'item_id': item.id,
@@ -38,6 +40,38 @@ class LocalItemRepository implements IItemRepository {
         'status': item.taskDetail!.status.name,
         'completed_at': item.taskDetail!.completedAt?.toIso8601String(),
         'estimated_duration_minutes': item.taskDetail!.estimatedDurationMinutes,
+      };
+    }
+    if (item.noteDetail != null) {
+      db.notes[item.id] = {
+        'item_id': item.id,
+        'content': item.noteDetail!.content,
+        'content_format': item.noteDetail!.contentFormat,
+        'word_count': item.noteDetail!.wordCount,
+      };
+    }
+    if (item.appointmentDetail != null) {
+      db.appointments[item.id] = {
+        'item_id': item.id,
+        'start_time': item.appointmentDetail!.startTime.toIso8601String(),
+        'end_time': item.appointmentDetail!.endTime?.toIso8601String(),
+        'location': item.appointmentDetail!.location,
+        'calendar_event_id': item.appointmentDetail!.calendarEventId,
+        'all_day': item.appointmentDetail!.allDay ? 1 : 0,
+        'timezone': item.appointmentDetail!.timezone,
+      };
+    }
+    if (item.documentDetail != null) {
+      db.documents[item.id] = {
+        'item_id': item.id,
+        'document_type': item.documentDetail!.documentType,
+        'document_number': item.documentDetail!.documentNumber,
+        'issuing_authority': item.documentDetail!.issuingAuthority,
+        'issue_date': item.documentDetail!.issueDate?.toIso8601String(),
+        'expiry_date': item.documentDetail!.expiryDate?.toIso8601String(),
+        'storage_path': item.documentDetail!.storagePath,
+        'mime_type': item.documentDetail!.mimeType,
+        'file_size_bytes': item.documentDetail!.fileSizeBytes,
       };
     }
     return const Result.success(null);
@@ -62,6 +96,44 @@ class LocalItemRepository implements IItemRepository {
       );
     }
 
+    NoteDetail? noteDetail;
+    final nRow = db.notes[id];
+    if (nRow != null) {
+      noteDetail = NoteDetail(
+        content: nRow['content'] ?? '',
+        contentFormat: nRow['content_format'] ?? 'plain_text',
+        wordCount: nRow['word_count'],
+      );
+    }
+
+    AppointmentDetail? apptDetail;
+    final aRow = db.appointments[id];
+    if (aRow != null) {
+      apptDetail = AppointmentDetail(
+        startTime: DateTime.parse(aRow['start_time']),
+        endTime: aRow['end_time'] != null ? DateTime.parse(aRow['end_time']) : null,
+        location: aRow['location'],
+        calendarEventId: aRow['calendar_event_id'],
+        allDay: aRow['all_day'] == 1,
+        timezone: aRow['timezone'] ?? 'Asia/Aden',
+      );
+    }
+
+    DocumentDetail? docDetail;
+    final dRow = db.documents[id];
+    if (dRow != null) {
+      docDetail = DocumentDetail(
+        documentType: dRow['document_type'] ?? 'general',
+        documentNumber: dRow['document_number'],
+        issuingAuthority: dRow['issuing_authority'],
+        issueDate: dRow['issue_date'] != null ? DateTime.parse(dRow['issue_date']) : null,
+        expiryDate: dRow['expiry_date'] != null ? DateTime.parse(dRow['expiry_date']) : null,
+        storagePath: dRow['storage_path'],
+        mimeType: dRow['mime_type'],
+        fileSizeBytes: dRow['file_size_bytes'],
+      );
+    }
+
     final item = Item(
       id: row['id'],
       workspaceId: row['workspace_id'],
@@ -71,10 +143,13 @@ class LocalItemRepository implements IItemRepository {
       privacy: PrivacyClassification.values.byName(row['privacy_classification']),
       categoryId: row['category_id'],
       taskDetail: taskDetail,
+      noteDetail: noteDetail,
+      appointmentDetail: apptDetail,
+      documentDetail: docDetail,
       createdAt: DateTime.parse(row['created_at']),
       updatedAt: DateTime.parse(row['updated_at']),
       deletedAt: row['deleted_at'] != null ? DateTime.parse(row['deleted_at']) : null,
-      entityVersion: row['entity_version'],
+      entityVersion: row['entity_version'] ?? 1,
     );
     return Result.success(item);
   }

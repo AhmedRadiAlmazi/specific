@@ -38,36 +38,50 @@ class AppointmentDetail {
   final DateTime? endTime;
   final String? location;
   final String? calendarEventId;
+  final bool allDay;
+  final String timezone;
 
   AppointmentDetail({
     required this.startTime,
     this.endTime,
     this.location,
     this.calendarEventId,
+    this.allDay = false,
+    this.timezone = 'Asia/Aden',
   });
 }
 
 class NoteDetail {
-  final String contentMarkdown;
+  final String content;
+  final String contentFormat;
   final int? wordCount;
 
   NoteDetail({
-    required this.contentMarkdown,
+    required this.content,
+    this.contentFormat = 'plain_text',
     this.wordCount,
   });
 }
 
 class DocumentDetail {
-  final String storagePath;
-  final String mimeType;
-  final int fileSizeBytes;
-  final String? sha256Checksum;
+  final String documentType;
+  final String? documentNumber;
+  final String? issuingAuthority;
+  final DateTime? issueDate;
+  final DateTime? expiryDate;
+  final String? storagePath;
+  final String? mimeType;
+  final int? fileSizeBytes;
 
   DocumentDetail({
-    required this.storagePath,
-    required this.mimeType,
-    required this.fileSizeBytes,
-    this.sha256Checksum,
+    required this.documentType,
+    this.documentNumber,
+    this.issuingAuthority,
+    this.issueDate,
+    this.expiryDate,
+    this.storagePath,
+    this.mimeType,
+    this.fileSizeBytes,
   });
 }
 
@@ -134,6 +148,7 @@ class Item {
     this.entityVersion = 1,
   });
 
+  // 1. Task Factory
   factory Item.createTask({
     required String id,
     required String workspaceId,
@@ -142,6 +157,7 @@ class Item {
     Priority priority = Priority.medium,
     String? summary,
     String? categoryId,
+    PrivacyClassification privacy = PrivacyClassification.private,
   }) {
     final now = DateTime.now().toUtc();
     return Item(
@@ -151,13 +167,150 @@ class Item {
       title: title,
       summary: summary,
       categoryId: categoryId,
+      privacy: privacy,
       taskDetail: TaskDetail(dueDate: dueDate, priority: priority),
       createdAt: now,
       updatedAt: now,
     );
   }
 
+  // 2. Note Factory
+  factory Item.createNote({
+    required String id,
+    required String workspaceId,
+    required String title,
+    required String content,
+    String contentFormat = 'plain_text',
+    String? summary,
+    String? categoryId,
+    PrivacyClassification privacy = PrivacyClassification.private,
+  }) {
+    final now = DateTime.now().toUtc();
+    return Item(
+      id: id,
+      workspaceId: workspaceId,
+      itemType: ItemType.note,
+      title: title,
+      summary: summary,
+      categoryId: categoryId,
+      privacy: privacy,
+      noteDetail: NoteDetail(content: content, contentFormat: contentFormat),
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  // 3. Appointment Factory
+  factory Item.createAppointment({
+    required String id,
+    required String workspaceId,
+    required String title,
+    required DateTime startTime,
+    DateTime? endTime,
+    String? location,
+    bool allDay = false,
+    String timezone = 'Asia/Aden',
+    String? summary,
+    String? categoryId,
+    PrivacyClassification privacy = PrivacyClassification.private,
+  }) {
+    final now = DateTime.now().toUtc();
+    return Item(
+      id: id,
+      workspaceId: workspaceId,
+      itemType: ItemType.appointment,
+      title: title,
+      summary: summary,
+      categoryId: categoryId,
+      privacy: privacy,
+      appointmentDetail: AppointmentDetail(
+        startTime: startTime,
+        endTime: endTime,
+        location: location,
+        allDay: allDay,
+        timezone: timezone,
+      ),
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  // 4. Document Factory
+  factory Item.createDocument({
+    required String id,
+    required String workspaceId,
+    required String title,
+    required String documentType,
+    String? documentNumber,
+    String? issuingAuthority,
+    DateTime? issueDate,
+    DateTime? expiryDate,
+    String? summary,
+    String? categoryId,
+    PrivacyClassification privacy = PrivacyClassification.private,
+  }) {
+    final now = DateTime.now().toUtc();
+    return Item(
+      id: id,
+      workspaceId: workspaceId,
+      itemType: ItemType.document,
+      title: title,
+      summary: summary,
+      categoryId: categoryId,
+      privacy: privacy,
+      documentDetail: DocumentDetail(
+        documentType: documentType,
+        documentNumber: documentNumber,
+        issuingAuthority: issuingAuthority,
+        issueDate: issueDate,
+        expiryDate: expiryDate,
+      ),
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  // 5. Generic Unified Item Factory
+  factory Item.createUnified({
+    required String id,
+    required String workspaceId,
+    required ItemType itemType,
+    required String title,
+    String? summary,
+    String? categoryId,
+    PrivacyClassification privacy = PrivacyClassification.private,
+    TaskDetail? taskDetail,
+    NoteDetail? noteDetail,
+    AppointmentDetail? appointmentDetail,
+    DocumentDetail? documentDetail,
+    ShoppingListDetail? shoppingListDetail,
+  }) {
+    final now = DateTime.now().toUtc();
+    return Item(
+      id: id,
+      workspaceId: workspaceId,
+      itemType: itemType,
+      title: title,
+      summary: summary,
+      categoryId: categoryId,
+      privacy: privacy,
+      taskDetail: taskDetail,
+      noteDetail: noteDetail,
+      appointmentDetail: appointmentDetail,
+      documentDetail: documentDetail,
+      shoppingListDetail: shoppingListDetail,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
   bool get isDeleted => deletedAt != null;
+  bool get isTask => itemType == ItemType.task;
+  bool get isNote => itemType == ItemType.note;
+  bool get isAppointment => itemType == ItemType.appointment;
+  bool get isDocument => itemType == ItemType.document;
+  bool get isDebt => itemType == ItemType.debt;
+  bool get isShopping => itemType == ItemType.shopping;
 
   Item markDeleted() {
     return Item(

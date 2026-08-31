@@ -1,6 +1,7 @@
 // Application Commands — مشروع «مُعين» (Mouin)
 import 'package:mouin/domain/value_objects/types.dart';
 import 'package:mouin/domain/value_objects/money.dart';
+import 'package:mouin/domain/entities/item.dart';
 
 class CreateTaskCommand {
   final String workspaceId;
@@ -8,6 +9,7 @@ class CreateTaskCommand {
   final DateTime? dueDate;
   final Priority priority;
   final String? summary;
+  final String? categoryId;
 
   CreateTaskCommand({
     required this.workspaceId,
@@ -15,6 +17,115 @@ class CreateTaskCommand {
     this.dueDate,
     this.priority = Priority.medium,
     this.summary,
+    this.categoryId,
+  });
+}
+
+class CreateNoteCommand {
+  final String workspaceId;
+  final String title;
+  final String content;
+  final String contentFormat;
+  final String? summary;
+  final String? categoryId;
+
+  CreateNoteCommand({
+    required this.workspaceId,
+    required this.title,
+    required this.content,
+    this.contentFormat = 'plain_text',
+    this.summary,
+    this.categoryId,
+  });
+}
+
+class CreateAppointmentCommand {
+  final String workspaceId;
+  final String title;
+  final DateTime startTime;
+  final DateTime? endTime;
+  final String? location;
+  final bool allDay;
+  final String timezone;
+  final String? summary;
+  final String? categoryId;
+
+  CreateAppointmentCommand({
+    required this.workspaceId,
+    required this.title,
+    required this.startTime,
+    this.endTime,
+    this.location,
+    this.allDay = false,
+    this.timezone = 'Asia/Aden',
+    this.summary,
+    this.categoryId,
+  });
+}
+
+class CreateDocumentCommand {
+  final String workspaceId;
+  final String title;
+  final String documentType;
+  final String? documentNumber;
+  final String? issuingAuthority;
+  final DateTime? issueDate;
+  final DateTime? expiryDate;
+  final String? summary;
+  final String? categoryId;
+
+  CreateDocumentCommand({
+    required this.workspaceId,
+    required this.title,
+    required this.documentType,
+    this.documentNumber,
+    this.issuingAuthority,
+    this.issueDate,
+    this.expiryDate,
+    this.summary,
+    this.categoryId,
+  });
+}
+
+class CreateUnifiedItemCommand {
+  final String workspaceId;
+  final ItemType itemType;
+  final String title;
+  final String? summary;
+  final String? categoryId;
+  final PrivacyClassification privacy;
+  final TaskDetail? taskDetail;
+  final NoteDetail? noteDetail;
+  final AppointmentDetail? appointmentDetail;
+  final DocumentDetail? documentDetail;
+
+  CreateUnifiedItemCommand({
+    required this.workspaceId,
+    required this.itemType,
+    required this.title,
+    this.summary,
+    this.categoryId,
+    this.privacy = PrivacyClassification.private,
+    this.taskDetail,
+    this.noteDetail,
+    this.appointmentDetail,
+    this.documentDetail,
+  });
+}
+
+class UpdateItemCommand {
+  final String workspaceId;
+  final String itemId;
+  final String? title;
+  final String? summary;
+  final PrivacyClassification? privacy;
+
+  UpdateItemCommand({
+    required this.workspaceId,
+    required this.itemId,
+    this.title,
+    this.summary,
+    this.privacy,
   });
 }
 

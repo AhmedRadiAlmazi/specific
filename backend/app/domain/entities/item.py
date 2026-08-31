@@ -1,12 +1,12 @@
 """
 Item Aggregate Root & Specialized Subtypes — مشروع «مُعين» (Mouin)
-Item is the Aggregate Root. Types: task, appointment, note, document, debt, shopping.
+Item is the Unified Aggregate Root for: task, appointment, note, document, debt, shopping.
 Reminder is strictly decoupled from Item.
 """
 
 from dataclasses import dataclass, field
 from datetime import datetime, date, timezone
-from typing import Optional
+from typing import Optional, Dict, Any
 from backend.app.domain.entities.base import AggregateRoot
 from backend.app.domain.value_objects.identity import EntityId, WorkspaceId, InstallationId
 from backend.app.domain.value_objects.types import ItemType, PrivacyClassification, Priority, TaskStatus
@@ -132,11 +132,136 @@ class Item(AggregateRoot):
         ))
         return item
 
+    @classmethod
+    def create_note(
+        cls,
+        id: EntityId,
+        workspace_id: WorkspaceId,
+        title: str,
+        content: str = "",
+        content_format: str = "plain_text",
+        summary: Optional[str] = None,
+        category_id: Optional[EntityId] = None,
+        privacy: PrivacyClassification = PrivacyClassification.PRIVATE,
+        installation_id: Optional[InstallationId] = None
+    ) -> "Item":
+        note_detail = NoteDetail(content=content, content_format=content_format)
+        item = cls(
+            id=id,
+            workspace_id=workspace_id,
+            item_type=ItemType.NOTE,
+            title=title,
+            summary=summary,
+            category_id=category_id,
+            privacy_classification=privacy,
+            created_by_installation_id=installation_id,
+            note_detail=note_detail
+        )
+        item.record_event(ItemCreatedEvent(
+            event_id=str(EntityId.new()),
+            workspace_id=str(workspace_id),
+            event_type="item.note_created",
+            aggregate_type="item",
+            aggregate_id=str(id),
+            payload={"title": title}
+        ))
+        return item
+
+    @classmethod
+    def create_appointment(
+        cls,
+        id: EntityId,
+        workspace_id: WorkspaceId,
+        title: str,
+        start_time: datetime,
+        end_time: Optional[datetime] = None,
+        location: Optional[str] = None,
+        all_day: bool = False,
+        timezone_str: str = "Asia/Aden",
+        summary: Optional[str] = None,
+        category_id: Optional[EntityId] = None,
+        privacy: PrivacyClassification = PrivacyClassification.PRIVATE,
+        installation_id: Optional[InstallationId] = None
+    ) -> "Item":
+        appt_detail = AppointmentDetail(
+            start_time=start_time,
+            end_time=end_time,
+            location=location,
+            all_day=all_day,
+            timezone=timezone_str
+        )
+        item = cls(
+            id=id,
+            workspace_id=workspace_id,
+            item_type=ItemType.APPOINTMENT,
+            title=title,
+            summary=summary,
+            category_id=category_id,
+            privacy_classification=privacy,
+            temporal_resolved_at=start_time,
+            temporal_timezone=timezone_str,
+            created_by_installation_id=installation_id,
+            appointment_detail=appt_detail
+        )
+        item.record_event(ItemCreatedEvent(
+            event_id=str(EntityId.new()),
+            workspace_id=str(workspace_id),
+            event_type="item.appointment_created",
+            aggregate_type="item",
+            aggregate_id=str(id),
+            payload={"title": title, "start_time": start_time.isoformat()}
+        ))
+        return item
+
+    @classmethod
+    def create_document(
+        cls,
+        id: EntityId,
+        workspace_id: WorkspaceId,
+        title: str,
+        document_type: str,
+        issue_date: Optional[date] = None,
+        expiry_date: Optional[date] = None,
+        document_number: Optional[str] = None,
+        issuing_authority: Optional[str] = None,
+        summary: Optional[str] = None,
+        category_id: Optional[EntityId] = None,
+        privacy: PrivacyClassification = PrivacyClassification.PRIVATE,
+        installation_id: Optional[InstallationId] = None
+    ) -> "Item":
+        doc_detail = DocumentDetail(
+            document_type=document_type,
+            issue_date=issue_date,
+            expiry_date=expiry_date,
+            document_number=document_number,
+            issuing_authority=issuing_authority
+        )
+        item = cls(
+            id=id,
+            workspace_id=workspace_id,
+            item_type=ItemType.DOCUMENT,
+            title=title,
+            summary=summary,
+            category_id=category_id,
+            privacy_classification=privacy,
+            created_by_installation_id=installation_id,
+            document_detail=doc_detail
+        )
+        item.record_event(ItemCreatedEvent(
+            event_id=str(EntityId.new()),
+            workspace_id=str(workspace_id),
+            event_type="item.document_created",
+            aggregate_type="item",
+            aggregate_id=str(id),
+            payload={"title": title, "document_type": document_type}
+        ))
+        return item
+
     def complete_task(self):
         if self.item_type != ItemType.TASK or not self.task_detail:
             raise InvalidStateTransitionError("Only Task items can be completed.")
         if self.task_detail.status == TaskStatus.COMPLETED:
-            return  # Already completed
+            return
         self.task_detail.status = TaskStatus.COMPLETED
         self.task_detail.completed_at = datetime.now(timezone.utc)
         self.touch()

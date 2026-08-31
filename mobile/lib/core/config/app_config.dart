@@ -20,6 +20,8 @@ class AppConfig {
     }
   }
 
+  static String get defaultApiBaseUrl => apiBaseUrl;
+
   static const Duration requestTimeout = Duration(seconds: 15);
   static const int syncBatchSize = 50;
   static const int maxRetryAttempts = 3;

@@ -26,7 +26,7 @@ void main() {
     itemRepo = LocalItemRepository(db);
     debtRepo = LocalDebtRepository(db);
     outboxRepo = LocalOutboxRepository(db);
-    remoteApi = RemoteSyncApi();
+    remoteApi = RemoteSyncApi.mock();
     syncEngine = SyncEngine(
       localDb: db,
       outboxRepository: outboxRepo,

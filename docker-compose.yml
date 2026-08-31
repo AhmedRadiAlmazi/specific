@@ -1,46 +1,49 @@
 version: '3.8'
 
 services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mouin-api:1.0.0
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+      - DATABASE_URL=postgresql://mouin_user:secure_pg_password_here@postgres:5432/mouin_db
+      - JWT_SECRET_KEY=production_secure_jwt_secret_key_at_least_32_chars_long
+      - ALLOWED_ORIGINS=https://app.mouin.io
+      - LOG_LEVEL=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mouin_network
+
   postgres:
     image: postgres:16-alpine
-    container_name: mouin_postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: mouin_db
       POSTGRES_USER: mouin_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_in_production_secret}
+      POSTGRES_PASSWORD: secure_pg_password_here
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/database/postgres_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U mouin_user -d mouin_db"]
       interval: 10s
       timeout: 5s
       retries: 5
-
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: mouin_api
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      APP_ENV: production
-      DATABASE_URL: postgresql://mouin_user:${POSTGRES_PASSWORD:-change_in_production_secret}@postgres:5432/mouin_db
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-generate_strong_production_secret_32_chars}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://app.mouin.local}
-    ports:
-      - "8000:8000"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready')"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
+    networks:
+      - mouin_network
 
 volumes:
   postgres_data:
+
+networks:
+  mouin_network:
+    driver: bridge

@@ -1,37 +1,49 @@
-# =============================================================================
-# Production Multi-Stage Dockerfile — مشروع «مُعين» (Mouin)
-# Non-root secure execution, minimal attack surface
-# =============================================================================
+# ==============================================================================
+# Mouin (مُعين) — Production Multi-Stage Dockerfile
+# ==============================================================================
 
 FROM python:3.12-slim AS builder
 
-WORKDIR /build
+WORKDIR /app
+
+# Install system build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
-FROM python:3.12-slim AS runtime
+# Final minimal runtime image
+FROM python:3.12-slim AS runner
 
 WORKDIR /app
 
-# Security: Create non-root user
-RUN addgroup --system mouingroup && adduser --system --group mouinuser
+# Install runtime PostgreSQL client library
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy installed dependencies from builder
-COPY --from=builder /root/.local /home/mouinuser/.local
-ENV PATH=/home/mouinuser/.local/bin:$PATH
+# Copy installed Python packages from builder stage
+COPY --from=builder /root/.local /root/.local
+ENV PATH=/root/.local/bin:$PATH
+ENV PYTHONPATH=/app
+
+# Create non-root system user for security
+RUN useradd -m -u 10001 mouin_user
+USER mouin_user
 
 # Copy application source code
-COPY backend /app/backend
-
-# Switch to non-root user
-USER mouinuser
+COPY --chown=mouin_user:mouin_user backend /app/backend
+COPY --chown=mouin_user:mouin_user migrations /app/migrations
+COPY --chown=mouin_user:mouin_user alembic.ini /app/alembic.ini
 
 EXPOSE 8000
 
-ENV APP_ENV=production
-ENV PYTHONUNBUFFERED=1
+# Health check probe
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/health/live || exit 1
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready')" || exit 1
-
-CMD ["uvicorn", "backend.app.presentation.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+ENTRYPOINT ["uvicorn", "backend.app.presentation.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

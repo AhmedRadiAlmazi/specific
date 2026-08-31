@@ -27,7 +27,7 @@ void main() {
       localDb: db,
       outboxRepository: outboxRepo,
       itemRepository: itemRepo,
-      remoteSyncApi: RemoteSyncApi(),
+      remoteSyncApi: RemoteSyncApi.mock(),
     );
     syncBloc = SyncBloc(syncEngine: syncEngine);
   });

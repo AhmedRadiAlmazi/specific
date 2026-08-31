@@ -17,7 +17,7 @@ void main() {
     db = LocalSqliteDb();
     itemRepo = LocalItemRepository(db);
     outboxRepo = LocalOutboxRepository(db);
-    remoteApi = RemoteSyncApi();
+    remoteApi = RemoteSyncApi.mock();
     syncEngine = SyncEngine(
       localDb: db,
       outboxRepository: outboxRepo,

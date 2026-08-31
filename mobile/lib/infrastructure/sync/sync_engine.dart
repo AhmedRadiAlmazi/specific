@@ -50,22 +50,59 @@ class SyncEngine {
     final changes = pullRes.value['changes'] as List<dynamic>? ?? [];
     final nextCursor = pullRes.value['next_cursor'] as int? ?? currentSeq;
 
-    // Apply changes locally
+    // Apply changes locally across all item subtypes
     for (final change in changes) {
-      final entityType = change['entity_type'];
+      final entityType = change['entity_type'] as String? ?? 'item';
       final payload = change['payload'] as Map<String, dynamic>? ?? {};
-      if (entityType == 'item' || entityType == 'task') {
-        localDb.items[payload['id']] = {
-          'id': payload['id'],
+      final itemId = payload['id'] as String? ?? change['entity_id'] as String? ?? '';
+      if (itemId.isEmpty) continue;
+
+      if (entityType == 'item' || entityType == 'task' || entityType == 'note' ||
+          entityType == 'appointment' || entityType == 'document' || entityType == 'shopping') {
+        final iType = payload['item_type'] as String? ?? (entityType == 'item' ? 'task' : entityType);
+        localDb.items[itemId] = {
+          'id': itemId,
           'workspace_id': workspaceId,
-          'item_type': 'task',
-          'title': payload['title'] ?? 'عنوان المهمة',
-          'privacy_classification': 'private',
-          'created_at': DateTime.now().toUtc().toIso8601String(),
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
+          'item_type': iType,
+          'title': payload['title'] ?? 'عنوان العنصر',
+          'summary': payload['summary'],
+          'privacy_classification': payload['privacy_classification'] ?? 'private',
+          'created_at': payload['created_at'] ?? DateTime.now().toUtc().toIso8601String(),
+          'updated_at': payload['updated_at'] ?? DateTime.now().toUtc().toIso8601String(),
           'deleted_at': payload['deleted_at'],
           'entity_version': change['entity_version'] ?? 1,
         };
+
+        if (iType == 'task') {
+          localDb.tasks[itemId] = {
+            'item_id': itemId,
+            'due_date': payload['due_date'],
+            'priority': payload['priority'] ?? 'medium',
+            'status': payload['status'] ?? 'pending',
+            'completed_at': payload['completed_at'],
+          };
+        } else if (iType == 'note') {
+          localDb.notes[itemId] = {
+            'item_id': itemId,
+            'content': payload['content'] ?? '',
+            'content_format': payload['content_format'] ?? 'plain_text',
+          };
+        } else if (iType == 'appointment') {
+          localDb.appointments[itemId] = {
+            'item_id': itemId,
+            'start_time': payload['start_time'] ?? DateTime.now().toUtc().toIso8601String(),
+            'end_time': payload['end_time'],
+            'location': payload['location'],
+            'all_day': payload['all_day'] == true ? 1 : 0,
+            'timezone': payload['timezone'] ?? 'Asia/Aden',
+          };
+        } else if (iType == 'document') {
+          localDb.documents[itemId] = {
+            'item_id': itemId,
+            'document_type': payload['document_type'] ?? 'general',
+            'document_number': payload['document_number'],
+          };
+        }
       }
     }
 
@@ -83,10 +120,12 @@ class SyncEngine {
     final initialCursor = bootRes.value['initial_cursor'] as int? ?? 0;
 
     for (final itemJson in snapshotItems) {
-      localDb.items[itemJson['id']] = {
-        'id': itemJson['id'],
+      final itemId = itemJson['id'] as String;
+      final iType = itemJson['item_type'] as String? ?? 'task';
+      localDb.items[itemId] = {
+        'id': itemId,
         'workspace_id': workspaceId,
-        'item_type': itemJson['item_type'] ?? 'task',
+        'item_type': iType,
         'title': itemJson['title'] ?? '',
         'summary': itemJson['summary'],
         'privacy_classification': itemJson['privacy_classification'] ?? 'private',
@@ -95,6 +134,21 @@ class SyncEngine {
         'deleted_at': itemJson['deleted_at'],
         'entity_version': itemJson['entity_version'] ?? 1,
       };
+      if (iType == 'task') {
+        localDb.tasks[itemId] = {
+          'item_id': itemId,
+          'due_date': itemJson['due_date'],
+          'priority': itemJson['priority'] ?? 'medium',
+          'status': itemJson['status'] ?? 'pending',
+          'completed_at': itemJson['completed_at'],
+        };
+      } else if (iType == 'note') {
+        localDb.notes[itemId] = {
+          'item_id': itemId,
+          'content': itemJson['content'] ?? '',
+          'content_format': itemJson['content_format'] ?? 'plain_text',
+        };
+      }
     }
     localDb.syncState[workspaceId] = initialCursor;
     return const Result.success(null);

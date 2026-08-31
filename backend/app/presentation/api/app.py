@@ -19,17 +19,22 @@ from backend.app.presentation.api.errors.handlers import (
 from backend.app.domain.exceptions import DomainException
 from backend.app.application.exceptions import ApplicationException
 from backend.app.domain.value_objects.identity import generate_uuidv7
-from backend.app.presentation.api.routers import health, items, debts, reminders, sync
+from backend.app.presentation.api.routers import health, items, debts, reminders, sync, auth, admin
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Applies strict production HTTP security headers."""
+    """Applies production HTTP security headers with appropriate CSP for API vs Admin SPA."""
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+        
+        # Admin SPA needs inline script/style execution, while REST API uses strict default-src 'none'
+        if request.url.path.startswith("/admin"):
+            response.headers["Content-Security-Policy"] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data:; frame-ancestors 'none'"
+        else:
+            response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
         return response
 
 class CorrelationIdMiddleware(BaseHTTPMiddleware):
@@ -86,6 +91,8 @@ def create_app() -> FastAPI:
 
     # Routers
     app.include_router(health.router)
+    app.include_router(auth.router)
+    app.include_router(admin.router)
     app.include_router(items.router)
     app.include_router(debts.router)
     app.include_router(reminders.router)
