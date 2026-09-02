@@ -1,4 +1,6 @@
-// Bidirectional Sync Engine — مشروع «مُعين» (Mouin)
+// Bidirectional Sync Engine with Exponential Backoff — مشروع «مُعين» (Mouin)
+import 'dart:async';
+import 'dart:math';
 import 'package:mouin/core/result/result.dart';
 import 'package:mouin/core/errors/failures.dart';
 import 'package:mouin/domain/repositories/i_item_repository.dart';
@@ -10,11 +12,22 @@ abstract class IRemoteSyncApi {
   Future<Result<Map<String, dynamic>, Failure>> bootstrap(String workspaceId);
 }
 
+enum SyncStateStatus {
+  idle,
+  syncing,
+  success,
+  offline,
+  failed,
+}
+
 class SyncEngine {
   final LocalSqliteDb localDb;
   final IOutboxRepository outboxRepository;
   final IItemRepository itemRepository;
   final IRemoteSyncApi remoteSyncApi;
+
+  int _consecutiveFailures = 0;
+  final Random _random = Random();
 
   SyncEngine({
     required this.localDb,
@@ -22,6 +35,51 @@ class SyncEngine {
     required this.itemRepository,
     required this.remoteSyncApi,
   });
+
+  int get consecutiveFailures => _consecutiveFailures;
+
+  /// Full two-way sync loop with Exponential Backoff retry resilience
+  Future<Result<int, Failure>> syncWithBackoff(String workspaceId, {int maxAttempts = 3}) async {
+    int attempts = 0;
+    Failure? lastFailure;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+      final pushRes = await push(workspaceId);
+      if (!pushRes.isSuccess) {
+        lastFailure = pushRes.failure;
+        _consecutiveFailures++;
+        if (attempts < maxAttempts) {
+          final backoffMs = _calculateBackoffDelay(attempts);
+          await Future.delayed(Duration(milliseconds: backoffMs));
+        }
+        continue;
+      }
+
+      final pullRes = await pull(workspaceId);
+      if (!pullRes.isSuccess) {
+        lastFailure = pullRes.failure;
+        _consecutiveFailures++;
+        if (attempts < maxAttempts) {
+          final backoffMs = _calculateBackoffDelay(attempts);
+          await Future.delayed(Duration(milliseconds: backoffMs));
+        }
+        continue;
+      }
+
+      _consecutiveFailures = 0;
+      return Result.success((pushRes.value) + (pullRes.value));
+    }
+
+    return Result.failure(lastFailure ?? const NetworkFailure('Sync failed after maximum retry attempts.'));
+  }
+
+  int _calculateBackoffDelay(int attempt) {
+    // Exponential backoff: base 200ms * 2^(attempt - 1) + jitter (0-50ms)
+    final base = 200 * pow(2, attempt - 1).toInt();
+    final jitter = _random.nextInt(50);
+    return base + jitter;
+  }
 
   // 1. Push Phase: sends pending local outbox operations
   Future<Result<int, Failure>> push(String workspaceId) async {
@@ -50,18 +108,33 @@ class SyncEngine {
     final changes = pullRes.value['changes'] as List<dynamic>? ?? [];
     final nextCursor = pullRes.value['next_cursor'] as int? ?? currentSeq;
 
-    // Apply changes locally across all item subtypes
+    // Apply changes locally across items, debts, and subtypes
     for (final change in changes) {
       final entityType = change['entity_type'] as String? ?? 'item';
       final payload = change['payload'] as Map<String, dynamic>? ?? {};
-      final itemId = payload['id'] as String? ?? change['entity_id'] as String? ?? '';
-      if (itemId.isEmpty) continue;
+      final entityId = payload['id'] as String? ?? change['entity_id'] as String? ?? '';
+      if (entityId.isEmpty) continue;
 
-      if (entityType == 'item' || entityType == 'task' || entityType == 'note' ||
+      if (entityType == 'debt') {
+        localDb.debts[entityId] = {
+          'id': entityId,
+          'workspace_id': workspaceId,
+          'person_id': payload['person_id'] ?? 'طرف المعاملة',
+          'debt_type': payload['debt_type'] ?? 'payable',
+          'total_amount': payload['total_amount'] ?? '0.00',
+          'currency': payload['currency'] ?? 'YER',
+          'status': payload['status'] ?? 'active',
+          'due_date': payload['due_date'],
+          'created_at': payload['created_at'] ?? DateTime.now().toUtc().toIso8601String(),
+          'updated_at': payload['updated_at'] ?? DateTime.now().toUtc().toIso8601String(),
+          'deleted_at': payload['deleted_at'],
+          'entity_version': change['entity_version'] ?? 1,
+        };
+      } else if (entityType == 'item' || entityType == 'task' || entityType == 'note' ||
           entityType == 'appointment' || entityType == 'document' || entityType == 'shopping') {
         final iType = payload['item_type'] as String? ?? (entityType == 'item' ? 'task' : entityType);
-        localDb.items[itemId] = {
-          'id': itemId,
+        localDb.items[entityId] = {
+          'id': entityId,
           'workspace_id': workspaceId,
           'item_type': iType,
           'title': payload['title'] ?? 'عنوان العنصر',
@@ -74,22 +147,22 @@ class SyncEngine {
         };
 
         if (iType == 'task') {
-          localDb.tasks[itemId] = {
-            'item_id': itemId,
+          localDb.tasks[entityId] = {
+            'item_id': entityId,
             'due_date': payload['due_date'],
             'priority': payload['priority'] ?? 'medium',
             'status': payload['status'] ?? 'pending',
             'completed_at': payload['completed_at'],
           };
         } else if (iType == 'note') {
-          localDb.notes[itemId] = {
-            'item_id': itemId,
+          localDb.notes[entityId] = {
+            'item_id': entityId,
             'content': payload['content'] ?? '',
             'content_format': payload['content_format'] ?? 'plain_text',
           };
         } else if (iType == 'appointment') {
-          localDb.appointments[itemId] = {
-            'item_id': itemId,
+          localDb.appointments[entityId] = {
+            'item_id': entityId,
             'start_time': payload['start_time'] ?? DateTime.now().toUtc().toIso8601String(),
             'end_time': payload['end_time'],
             'location': payload['location'],
@@ -97,8 +170,8 @@ class SyncEngine {
             'timezone': payload['timezone'] ?? 'Asia/Aden',
           };
         } else if (iType == 'document') {
-          localDb.documents[itemId] = {
-            'item_id': itemId,
+          localDb.documents[entityId] = {
+            'item_id': entityId,
             'document_type': payload['document_type'] ?? 'general',
             'document_number': payload['document_number'],
           };

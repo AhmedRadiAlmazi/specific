@@ -1,18 +1,14 @@
 name: mouin
-description: "Mouin (مُعين) - Offline-First Personal Productivity Mobile Client"
+description: "مُعين — مساعدك الشخصي لإدارة المهام والديون والتذكيرات"
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
-  flutter: ">=3.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  flutter_localizations:
-    sdk: flutter
-  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
@@ -20,3 +16,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
+

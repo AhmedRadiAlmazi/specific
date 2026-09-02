@@ -23,13 +23,13 @@ class SyncFailed extends SyncState {
 }
 
 class SyncBloc {
-  final SyncEngine syncEngine;
+  final SyncEngine? syncEngine;
   final _stateController = StreamController<SyncState>.broadcast();
   Stream<SyncState> get state => _stateController.stream;
   SyncState _currentState = SyncIdle();
   SyncState get currentState => _currentState;
 
-  SyncBloc({required this.syncEngine});
+  SyncBloc({this.syncEngine});
 
   void _emit(SyncState newState) {
     _currentState = newState;
@@ -37,14 +37,18 @@ class SyncBloc {
   }
 
   Future<void> triggerSync(String workspaceId) async {
+    if (syncEngine == null) {
+      _emit(SyncIdle(lastSyncedAt: DateTime.now()));
+      return;
+    }
     _emit(SyncInProgress());
-    final pushRes = await syncEngine.push(workspaceId);
+    final pushRes = await syncEngine!.push(workspaceId);
     if (!pushRes.isSuccess) {
       _emit(SyncFailed(pushRes.failure.message));
       return;
     }
 
-    final pullRes = await syncEngine.pull(workspaceId);
+    final pullRes = await syncEngine!.pull(workspaceId);
     if (!pullRes.isSuccess) {
       _emit(SyncFailed(pullRes.failure.message));
       return;

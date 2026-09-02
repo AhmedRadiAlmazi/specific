@@ -1,19 +1,13 @@
-// SQLite Local In-Memory & Persistence Store — مشروع «مُعين» (Mouin)
-
+// Local SQLite Database In-Memory & File Store — مشروع «مُعين» (Mouin)
 class LocalSqliteDb {
-  // Tables replicating mobile/database/sqlite_schema.sql
   final Map<String, Map<String, dynamic>> items = {};
   final Map<String, Map<String, dynamic>> tasks = {};
   final Map<String, Map<String, dynamic>> notes = {};
   final Map<String, Map<String, dynamic>> appointments = {};
   final Map<String, Map<String, dynamic>> documents = {};
-  final Map<String, Map<String, dynamic>> shoppingLists = {};
   final Map<String, Map<String, dynamic>> debts = {};
-  final Map<String, Map<String, dynamic>> debtTransactions = {};
-  final Map<String, Map<String, dynamic>> reminderRules = {};
-  final Map<String, Map<String, dynamic>> reminderInstances = {};
-  final Map<String, Map<String, dynamic>> outbox = {};
-  final Map<String, int> syncState = {}; // workspace_id -> last_server_sequence
+  final Map<String, Map<String, dynamic>> reminders = {};
+  final Map<String, int> syncState = {};
 
   void clear() {
     items.clear();
@@ -21,12 +15,8 @@ class LocalSqliteDb {
     notes.clear();
     appointments.clear();
     documents.clear();
-    shoppingLists.clear();
     debts.clear();
-    debtTransactions.clear();
-    reminderRules.clear();
-    reminderInstances.clear();
-    outbox.clear();
+    reminders.clear();
     syncState.clear();
   }
 }

@@ -19,7 +19,7 @@ from backend.app.presentation.api.errors.handlers import (
 from backend.app.domain.exceptions import DomainException
 from backend.app.application.exceptions import ApplicationException
 from backend.app.domain.value_objects.identity import generate_uuidv7
-from backend.app.presentation.api.routers import health, items, debts, reminders, sync, auth, admin
+from backend.app.presentation.api.routers import health, items, debts, reminders, sync, auth, admin, attachments
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Applies production HTTP security headers with appropriate CSP for API vs Admin SPA."""
@@ -97,6 +97,7 @@ def create_app() -> FastAPI:
     app.include_router(debts.router)
     app.include_router(reminders.router)
     app.include_router(sync.router)
+    app.include_router(attachments.router)
 
     return app
 

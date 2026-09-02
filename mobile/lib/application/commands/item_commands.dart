@@ -1,23 +1,59 @@
 // Application Commands — مشروع «مُعين» (Mouin)
 import 'package:mouin/domain/value_objects/types.dart';
 import 'package:mouin/domain/value_objects/money.dart';
-import 'package:mouin/domain/entities/item.dart';
 
+// --- Item Commands ---
 class CreateTaskCommand {
   final String workspaceId;
   final String title;
-  final DateTime? dueDate;
   final Priority priority;
+  final DateTime? dueDate;
   final String? summary;
   final String? categoryId;
 
   CreateTaskCommand({
     required this.workspaceId,
     required this.title,
-    this.dueDate,
     this.priority = Priority.medium,
+    this.dueDate,
     this.summary,
     this.categoryId,
+  });
+}
+
+class CompleteTaskCommand {
+  final String workspaceId;
+  final String itemId;
+
+  CompleteTaskCommand({
+    required this.workspaceId,
+    required this.itemId,
+  });
+}
+
+class UpdateItemCommand {
+  final String workspaceId;
+  final String itemId;
+  final String? title;
+  final String? summary;
+  final PrivacyClassification? privacy;
+
+  UpdateItemCommand({
+    required this.workspaceId,
+    required this.itemId,
+    this.title,
+    this.summary,
+    this.privacy,
+  });
+}
+
+class SoftDeleteItemCommand {
+  final String workspaceId;
+  final String itemId;
+
+  SoftDeleteItemCommand({
+    required this.workspaceId,
+    required this.itemId,
   });
 }
 
@@ -46,7 +82,7 @@ class CreateAppointmentCommand {
   final DateTime? endTime;
   final String? location;
   final bool allDay;
-  final String timezone;
+  final String? timezone;
   final String? summary;
   final String? categoryId;
 
@@ -57,7 +93,7 @@ class CreateAppointmentCommand {
     this.endTime,
     this.location,
     this.allDay = false,
-    this.timezone = 'Asia/Aden',
+    this.timezone,
     this.summary,
     this.categoryId,
   });
@@ -66,7 +102,7 @@ class CreateAppointmentCommand {
 class CreateDocumentCommand {
   final String workspaceId;
   final String title;
-  final String documentType;
+  final String? documentType;
   final String? documentNumber;
   final String? issuingAuthority;
   final DateTime? issueDate;
@@ -77,7 +113,7 @@ class CreateDocumentCommand {
   CreateDocumentCommand({
     required this.workspaceId,
     required this.title,
-    required this.documentType,
+    this.documentType,
     this.documentNumber,
     this.issuingAuthority,
     this.issueDate,
@@ -93,11 +129,11 @@ class CreateUnifiedItemCommand {
   final String title;
   final String? summary;
   final String? categoryId;
-  final PrivacyClassification privacy;
-  final TaskDetail? taskDetail;
-  final NoteDetail? noteDetail;
-  final AppointmentDetail? appointmentDetail;
-  final DocumentDetail? documentDetail;
+  final PrivacyClassification? privacy;
+  final dynamic taskDetail;
+  final dynamic noteDetail;
+  final dynamic appointmentDetail;
+  final dynamic documentDetail;
 
   CreateUnifiedItemCommand({
     required this.workspaceId,
@@ -105,7 +141,7 @@ class CreateUnifiedItemCommand {
     required this.title,
     this.summary,
     this.categoryId,
-    this.privacy = PrivacyClassification.private,
+    this.privacy,
     this.taskDetail,
     this.noteDetail,
     this.appointmentDetail,
@@ -113,34 +149,26 @@ class CreateUnifiedItemCommand {
   });
 }
 
-class UpdateItemCommand {
+// --- Reminder Commands ---
+class CreateReminderRuleCommand {
   final String workspaceId;
   final String itemId;
-  final String? title;
-  final String? summary;
-  final PrivacyClassification? privacy;
+  final ReminderTriggerType triggerType;
+  final DateTime? triggerTime;
+  final int? offsetMinutes;
+  final String? rrule;
 
-  UpdateItemCommand({
+  CreateReminderRuleCommand({
     required this.workspaceId,
     required this.itemId,
-    this.title,
-    this.summary,
-    this.privacy,
+    required this.triggerType,
+    this.triggerTime,
+    this.offsetMinutes,
+    this.rrule,
   });
 }
 
-class CompleteTaskCommand {
-  final String workspaceId;
-  final String itemId;
-  CompleteTaskCommand({required this.workspaceId, required this.itemId});
-}
-
-class SoftDeleteItemCommand {
-  final String workspaceId;
-  final String itemId;
-  SoftDeleteItemCommand({required this.workspaceId, required this.itemId});
-}
-
+// --- Debt Commands ---
 class CreateDebtCommand {
   final String workspaceId;
   final String personId;
@@ -170,23 +198,5 @@ class RecordPaymentCommand {
     required this.amount,
     required this.transactionDate,
     this.notes,
-  });
-}
-
-class CreateReminderRuleCommand {
-  final String workspaceId;
-  final String itemId;
-  final ReminderTriggerType triggerType;
-  final DateTime? triggerTime;
-  final int? offsetMinutes;
-  final String? rrule;
-
-  CreateReminderRuleCommand({
-    required this.workspaceId,
-    required this.itemId,
-    required this.triggerType,
-    this.triggerTime,
-    this.offsetMinutes,
-    this.rrule,
   });
 }

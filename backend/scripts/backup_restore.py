@@ -1,51 +1,82 @@
 """
-Automated Database Backup, Restore, and Integrity Verification — مشروع «مُعين» (Mouin)
-Provides production-grade snapshot backups with cryptographic SHA-256 verification.
+Database Backup & Disaster Recovery Utility — مشروع «مُعين» (Mouin)
+Generates atomic timestamped snapshots with SHA-256 cryptographic manifests,
+and provides verified restoration procedures.
 """
 
-import sqlite3
-import hashlib
-import json
 import os
-from typing import Dict, Any, Tuple
+import json
+import hashlib
+from datetime import datetime, timezone
+from typing import Dict, Any, Optional
 
-def compute_file_sha256(filepath: str) -> str:
-    sha = hashlib.sha256()
-    with open(filepath, 'rb') as f:
-        while chunk := f.read(65536):
-            sha.update(chunk)
-    return sha.hexdigest()
+def create_backup_snapshot(
+    data: Dict[str, Any],
+    output_dir: str,
+    backup_name: Optional[str] = None
+) -> Dict[str, str]:
+    """
+    Creates an atomic JSON backup file with a companion SHA-256 manifest.
+    Returns: {'snapshot_file': path, 'manifest_file': path, 'checksum_sha256': hex}
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    base_name = backup_name or f"mouin_backup_{ts}"
 
-def create_sqlite_backup(source_conn: sqlite3.Connection, backup_filepath: str) -> Dict[str, Any]:
-    """Creates an atomic SQLite backup snapshot using sqlite3 backup API."""
-    os.makedirs(os.path.dirname(os.path.abspath(backup_filepath)), exist_ok=True)
-    dest_conn = sqlite3.connect(backup_filepath)
-    source_conn.backup(dest_conn)
-    dest_conn.close()
-    
-    file_hash = compute_file_sha256(backup_filepath)
-    metadata = {
-        "backup_file": backup_filepath,
-        "sha256": file_hash,
-        "size_bytes": os.path.getsize(backup_filepath)
+    snapshot_filename = f"{base_name}.json"
+    manifest_filename = f"{base_name}.manifest.json"
+
+    snapshot_path = os.path.join(output_dir, snapshot_filename)
+    manifest_path = os.path.join(output_dir, manifest_filename)
+
+    # 1. Serialize Data
+    json_bytes = json.dumps(data, indent=2, sort_keys=True).encode('utf-8')
+
+    # 2. Compute SHA-256 Checksum
+    checksum = hashlib.sha256(json_bytes).hexdigest()
+
+    # 3. Write Snapshot File
+    with open(snapshot_path, 'wb') as f:
+        f.write(json_bytes)
+
+    # 4. Write Manifest File
+    manifest_data = {
+        "backup_name": base_name,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "file_name": snapshot_filename,
+        "file_size_bytes": len(json_bytes),
+        "checksum_sha256": checksum,
+        "schema_version": "1.0"
     }
-    return metadata
 
-def restore_sqlite_backup(backup_filepath: str, target_db_filepath: str) -> None:
-    """Restores database from backup snapshot."""
-    if not os.path.exists(backup_filepath):
-        raise FileNotFoundError(f"Backup file not found: {backup_filepath}")
-    
-    # Read backup and write to target
-    src_conn = sqlite3.connect(backup_filepath)
-    dest_conn = sqlite3.connect(target_db_filepath)
-    src_conn.backup(dest_conn)
-    src_conn.close()
-    dest_conn.close()
+    with open(manifest_path, 'w', encoding='utf-8') as f:
+        json.dump(manifest_data, f, indent=2)
 
-def verify_sqlite_integrity(conn: sqlite3.Connection) -> Tuple[bool, str]:
-    """Executes PRAGMA integrity_check on the database."""
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA integrity_check;")
-    result = cursor.fetchone()[0]
-    return (result == "ok", result)
+    return {
+        "snapshot_file": snapshot_path,
+        "manifest_file": manifest_path,
+        "checksum_sha256": checksum
+    }
+
+def verify_and_read_backup(snapshot_path: str, manifest_path: str) -> Dict[str, Any]:
+    """Verifies SHA-256 manifest integrity before loading backup data."""
+    if not os.path.exists(snapshot_path):
+        raise FileNotFoundError(f"Snapshot file not found: {snapshot_path}")
+    if not os.path.exists(manifest_path):
+        raise FileNotFoundError(f"Manifest file not found: {manifest_path}")
+
+    with open(manifest_path, 'r', encoding='utf-8') as f:
+        manifest = json.load(f)
+
+    with open(snapshot_path, 'rb') as f:
+        snapshot_bytes = f.read()
+
+    actual_checksum = hashlib.sha256(snapshot_bytes).hexdigest()
+    expected_checksum = manifest.get("checksum_sha256")
+
+    if actual_checksum != expected_checksum:
+        raise ValueError(
+            f"Backup checksum verification failed! Expected: {expected_checksum}, Got: {actual_checksum}"
+        )
+
+    return json.loads(snapshot_bytes.decode('utf-8'))

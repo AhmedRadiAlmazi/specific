@@ -1,16 +1,12 @@
 // Debt BLoC — مشروع «مُعين» (Mouin)
 import 'dart:async';
 import 'package:mouin/domain/entities/debt.dart';
-import 'package:mouin/domain/repositories/i_item_repository.dart';
 import 'package:mouin/domain/value_objects/types.dart';
 import 'package:mouin/domain/value_objects/money.dart';
-import 'package:mouin/application/commands/item_commands.dart';
-import 'package:mouin/application/use_cases/debt_use_cases.dart';
+import 'package:mouin/infrastructure/database/local_sqlite_db.dart';
 
 abstract class DebtState {}
-class DebtInitial extends DebtState {}
 class DebtLoading extends DebtState {}
-class DebtEmpty extends DebtState {}
 class DebtLoaded extends DebtState {
   final List<Debt> debts;
   DebtLoaded(this.debts);
@@ -21,15 +17,14 @@ class DebtError extends DebtState {
 }
 
 class DebtBloc {
-  final DebtUseCases useCases;
-  final IDebtRepository repository;
-
+  final LocalSqliteDb localDb;
   final _stateController = StreamController<DebtState>.broadcast();
-  Stream<DebtState> get state => _stateController.stream;
-  DebtState _currentState = DebtInitial();
-  DebtState get currentState => _currentState;
+  DebtState _currentState = DebtLoaded([]);
 
-  DebtBloc({required this.useCases, required this.repository});
+  DebtBloc({required this.localDb});
+
+  Stream<DebtState> get state => _stateController.stream;
+  DebtState get currentState => _currentState;
 
   void _emit(DebtState newState) {
     _currentState = newState;
@@ -37,60 +32,53 @@ class DebtBloc {
   }
 
   Future<void> loadDebts(String workspaceId) async {
-    _emit(DebtLoading());
-    final res = await repository.listByWorkspace(workspaceId);
-    if (res.isSuccess) {
-      if (res.value.isEmpty) {
-        _emit(DebtEmpty());
-      } else {
-        _emit(DebtLoaded(res.value));
-      }
-    } else {
-      _emit(DebtError(res.failure.message));
-    }
+    final list = localDb.debts.values
+        .where((d) => d['workspace_id'] == workspaceId)
+        .map((d) => Debt(
+              id: d['id'],
+              workspaceId: d['workspace_id'],
+              personId: d['person_id'] ?? 'طرف المعاملة',
+              debtType: d['debt_type'] == 'receivable' ? DebtType.receivable : DebtType.payable,
+              totalAmount: Money.fromDecimalString(d['total_amount'] ?? '0.00', currency: d['currency'] ?? 'YER'),
+              status: DebtStatus.values.firstWhere((s) => s.name == (d['status'] ?? 'active'), orElse: () => DebtStatus.active),
+              dueDate: d['due_date'] != null ? DateTime.tryParse(d['due_date']) : null,
+              createdAt: DateTime.tryParse(d['created_at'] ?? '') ?? DateTime.now(),
+              updatedAt: DateTime.tryParse(d['updated_at'] ?? '') ?? DateTime.now(),
+            ))
+        .toList();
+    _emit(DebtLoaded(list));
   }
 
   Future<void> createDebt(
     String workspaceId,
     String personId,
     DebtType debtType,
-    Money amount, {
-    DateTime? dueDate,
-  }) async {
-    final cmd = CreateDebtCommand(
-      workspaceId: workspaceId,
-      personId: personId,
-      debtType: debtType,
-      totalAmount: amount,
-      dueDate: dueDate,
-    );
-    final res = await useCases.createDebt(cmd);
-    if (res.isSuccess) {
-      await loadDebts(workspaceId);
-    } else {
-      _emit(DebtError(res.failure.message));
-    }
+    Money amount,
+  ) async {
+    final id = 'debt_${DateTime.now().millisecondsSinceEpoch}';
+    localDb.debts[id] = {
+      'id': id,
+      'workspace_id': workspaceId,
+      'person_id': personId,
+      'debt_type': debtType == DebtType.receivable ? 'receivable' : 'payable',
+      'total_amount': amount.toDecimalString(),
+      'currency': amount.currency,
+      'status': 'active',
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    await loadDebts(workspaceId);
   }
 
-  Future<void> recordPayment(
-    String workspaceId,
-    String debtId,
-    Money amount,
-    DateTime date, {
-    String? notes,
-  }) async {
-    final cmd = RecordPaymentCommand(
-      workspaceId: workspaceId,
-      debtId: debtId,
-      amount: amount,
-      transactionDate: date,
-      notes: notes,
-    );
-    final res = await useCases.recordPayment(cmd);
-    if (res.isSuccess) {
+  Future<void> recordPayment(String workspaceId, String debtId, Money amount, DateTime date, {String? notes}) async {
+    if (localDb.debts.containsKey(debtId)) {
+      final current = Money.fromDecimalString(localDb.debts[debtId]!['total_amount'] ?? '0.00');
+      final remaining = current.subtract(amount);
+      if (remaining.minorUnits <= BigInt.zero) {
+        localDb.debts[debtId]!['status'] = 'settled';
+      }
+      localDb.debts[debtId]!['total_amount'] = remaining.toDecimalString();
       await loadDebts(workspaceId);
-    } else {
-      _emit(DebtError(res.failure.message));
     }
   }
 

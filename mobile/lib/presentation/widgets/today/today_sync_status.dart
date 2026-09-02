@@ -86,7 +86,7 @@ class TodaySyncStatus extends StatelessWidget {
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: MouinSpacing.md, vertical: 6),
-          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
           child: statusContent,
         );
       },

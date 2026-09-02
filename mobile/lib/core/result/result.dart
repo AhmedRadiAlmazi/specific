@@ -1,9 +1,7 @@
-// Result / Either Monad — مشروع «مُعين» (Mouin)
-import 'package:mouin/core/errors/failures.dart';
-
-class Result<T, F extends Failure> {
+// Functional Result Type — مشروع «مُعين» (Mouin)
+class Result<T, E> {
   final T? _value;
-  final F? _failure;
+  final E? _failure;
   final bool isSuccess;
 
   const Result.success(T value)
@@ -11,19 +9,26 @@ class Result<T, F extends Failure> {
         _failure = null,
         isSuccess = true;
 
-  const Result.failure(F failure)
+  const Result.failure(E failure)
       : _value = null,
         _failure = failure,
         isSuccess = false;
 
-  T get value => _value!;
-  F get failure => _failure!;
+  T get value {
+    if (!isSuccess) throw StateError('Cannot access value of a failure Result');
+    return _value as T;
+  }
 
-  R fold<R>(R Function(F failure) onFailure, R Function(T value) onSuccess) {
+  E get failure {
+    if (isSuccess) throw StateError('Cannot access failure of a success Result');
+    return _failure as E;
+  }
+
+  R fold<R>(R Function(T value) onSuccess, R Function(E failure) onFailure) {
     if (isSuccess) {
       return onSuccess(_value as T);
     } else {
-      return onFailure(_failure as F);
+      return onFailure(_failure as E);
     }
   }
 }

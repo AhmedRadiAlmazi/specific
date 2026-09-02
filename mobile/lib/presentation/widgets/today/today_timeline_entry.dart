@@ -163,7 +163,7 @@ class TodayTimelineEntryWidget extends StatelessWidget {
               Container(
                 width: 2,
                 height: 50,
-                color: theme.colorScheme.surfaceVariant,
+                color: theme.colorScheme.surfaceContainerHighest,
               ),
             ],
           ),

@@ -1,7 +1,7 @@
 // Exact Money & Decimal Representation — مشروع «مُعين» (Mouin)
 class Money {
-  final BigInt minorUnits; // Amount in minor units (cents / fils)
-  final int precision;     // e.g. 2 decimals
+  final BigInt minorUnits;
+  final int precision;
   final String currency;
 
   const Money._(this.minorUnits, this.currency, {this.precision = 2});

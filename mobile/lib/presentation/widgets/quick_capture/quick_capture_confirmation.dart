@@ -26,7 +26,7 @@ class QuickCaptureConfirmation extends StatelessWidget {
     final theme = Theme.of(context);
 
     return MouinCard(
-      color: theme.colorScheme.surfaceVariant,
+      color: theme.colorScheme.surfaceContainerHighest,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

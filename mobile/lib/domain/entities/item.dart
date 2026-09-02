@@ -1,34 +1,50 @@
-// Item Aggregates & Subtype Details — مشروع «مُعين» (Mouin)
-import 'package:mouin/domain/value_objects/types.dart';
+// Item Aggregate & Subtypes — مشروع «مُعين» (Mouin)
+import '../value_objects/types.dart';
 
 class TaskDetail {
-  final DateTime? dueDate;
   final Priority priority;
+  final DateTime? dueDate;
   final TaskStatus status;
   final DateTime? completedAt;
-  final int? estimatedDurationMinutes;
 
-  TaskDetail({
-    this.dueDate,
+  const TaskDetail({
     this.priority = Priority.medium,
+    this.dueDate,
     this.status = TaskStatus.pending,
     this.completedAt,
-    this.estimatedDurationMinutes,
   });
 
   TaskDetail copyWith({
-    DateTime? dueDate,
     Priority? priority,
+    DateTime? dueDate,
     TaskStatus? status,
     DateTime? completedAt,
-    int? estimatedDurationMinutes,
   }) {
     return TaskDetail(
-      dueDate: dueDate ?? this.dueDate,
       priority: priority ?? this.priority,
+      dueDate: dueDate ?? this.dueDate,
       status: status ?? this.status,
       completedAt: completedAt ?? this.completedAt,
-      estimatedDurationMinutes: estimatedDurationMinutes ?? this.estimatedDurationMinutes,
+    );
+  }
+}
+
+class NoteDetail {
+  final String content;
+  final String contentFormat;
+
+  const NoteDetail({
+    required this.content,
+    this.contentFormat = 'plain_text',
+  });
+
+  NoteDetail copyWith({
+    String? content,
+    String? contentFormat,
+  }) {
+    return NoteDetail(
+      content: content ?? this.content,
+      contentFormat: contentFormat ?? this.contentFormat,
     );
   }
 }
@@ -37,78 +53,80 @@ class AppointmentDetail {
   final DateTime startTime;
   final DateTime? endTime;
   final String? location;
-  final String? calendarEventId;
   final bool allDay;
-  final String timezone;
+  final String? timezone;
 
-  AppointmentDetail({
+  const AppointmentDetail({
     required this.startTime,
     this.endTime,
     this.location,
-    this.calendarEventId,
     this.allDay = false,
-    this.timezone = 'Asia/Aden',
+    this.timezone,
   });
-}
 
-class NoteDetail {
-  final String content;
-  final String contentFormat;
-  final int? wordCount;
-
-  NoteDetail({
-    required this.content,
-    this.contentFormat = 'plain_text',
-    this.wordCount,
-  });
+  AppointmentDetail copyWith({
+    DateTime? startTime,
+    DateTime? endTime,
+    String? location,
+    bool? allDay,
+    String? timezone,
+  }) {
+    return AppointmentDetail(
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      location: location ?? this.location,
+      allDay: allDay ?? this.allDay,
+      timezone: timezone ?? this.timezone,
+    );
+  }
 }
 
 class DocumentDetail {
-  final String documentType;
+  final String? documentType;
   final String? documentNumber;
   final String? issuingAuthority;
   final DateTime? issueDate;
   final DateTime? expiryDate;
-  final String? storagePath;
-  final String? mimeType;
-  final int? fileSizeBytes;
 
-  DocumentDetail({
-    required this.documentType,
+  const DocumentDetail({
+    this.documentType,
     this.documentNumber,
     this.issuingAuthority,
     this.issueDate,
     this.expiryDate,
-    this.storagePath,
-    this.mimeType,
-    this.fileSizeBytes,
   });
-}
 
-class ShoppingListItem {
-  final String id;
-  final String itemName;
-  final double quantity;
-  final String? unit;
-  final bool isChecked;
-
-  ShoppingListItem({
-    required this.id,
-    required this.itemName,
-    this.quantity = 1.0,
-    this.unit,
-    this.isChecked = false,
-  });
+  DocumentDetail copyWith({
+    String? documentType,
+    String? documentNumber,
+    String? issuingAuthority,
+    DateTime? issueDate,
+    DateTime? expiryDate,
+  }) {
+    return DocumentDetail(
+      documentType: documentType ?? this.documentType,
+      documentNumber: documentNumber ?? this.documentNumber,
+      issuingAuthority: issuingAuthority ?? this.issuingAuthority,
+      issueDate: issueDate ?? this.issueDate,
+      expiryDate: expiryDate ?? this.expiryDate,
+    );
+  }
 }
 
 class ShoppingListDetail {
-  final List<ShoppingListItem> items;
-  final bool isCompleted;
+  final List<dynamic> items;
 
-  ShoppingListDetail({
-    List<ShoppingListItem>? items,
-    this.isCompleted = false,
-  }) : items = items ?? [];
+  const ShoppingListDetail({
+    this.items = const [],
+  });
+
+  ShoppingListDetail copyWith({
+    List<dynamic>? items,
+  }) {
+    return ShoppingListDetail(
+      items: items ?? this.items,
+    );
+  }
 }
 
 class Item {
@@ -117,17 +135,19 @@ class Item {
   final ItemType itemType;
   final String title;
   final String? summary;
-  final PrivacyClassification privacy;
+  final PrivacyClassification? privacy;
   final String? categoryId;
+  final String? voiceFilePath;
+  final int? voiceDurationMs;
   final TaskDetail? taskDetail;
-  final AppointmentDetail? appointmentDetail;
   final NoteDetail? noteDetail;
+  final AppointmentDetail? appointmentDetail;
   final DocumentDetail? documentDetail;
   final ShoppingListDetail? shoppingListDetail;
+  final int entityVersion;
+  final DateTime? deletedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final DateTime? deletedAt;
-  final int entityVersion;
 
   Item({
     required this.id,
@@ -135,20 +155,45 @@ class Item {
     required this.itemType,
     required this.title,
     this.summary,
-    this.privacy = PrivacyClassification.private,
+    this.privacy,
     this.categoryId,
-    this.taskDetail,
-    this.appointmentDetail,
+    this.voiceFilePath,
+    this.voiceDurationMs,
+    TaskDetail? taskDetail,
+    Priority? priority,
+    bool? isCompleted,
+    DateTime? dueDate,
     this.noteDetail,
+    this.appointmentDetail,
     this.documentDetail,
     this.shoppingListDetail,
+    this.entityVersion = 1,
+    this.deletedAt,
     required this.createdAt,
     required this.updatedAt,
-    this.deletedAt,
-    this.entityVersion = 1,
-  });
+  }) : taskDetail = taskDetail ??
+            (itemType == ItemType.task || priority != null || isCompleted != null || dueDate != null
+                ? TaskDetail(
+                    priority: priority ?? Priority.medium,
+                    dueDate: dueDate,
+                    status: (isCompleted ?? false) ? TaskStatus.completed : TaskStatus.pending,
+                  )
+                : null);
 
-  // 1. Task Factory
+  Priority get priority => taskDetail?.priority ?? Priority.medium;
+  bool get isCompleted => taskDetail?.status == TaskStatus.completed;
+  DateTime? get dueDate => taskDetail?.dueDate;
+  bool get isDeleted => deletedAt != null;
+
+  Item markDeleted({DateTime? at}) {
+    final now = at ?? DateTime.now().toUtc();
+    return copyWith(
+      deletedAt: now,
+      updatedAt: now,
+      entityVersion: entityVersion + 1,
+    );
+  }
+
   factory Item.createTask({
     required String id,
     required String workspaceId,
@@ -157,7 +202,7 @@ class Item {
     Priority priority = Priority.medium,
     String? summary,
     String? categoryId,
-    PrivacyClassification privacy = PrivacyClassification.private,
+    PrivacyClassification? privacy,
   }) {
     final now = DateTime.now().toUtc();
     return Item(
@@ -168,13 +213,16 @@ class Item {
       summary: summary,
       categoryId: categoryId,
       privacy: privacy,
-      taskDetail: TaskDetail(dueDate: dueDate, priority: priority),
+      taskDetail: TaskDetail(
+        priority: priority,
+        dueDate: dueDate,
+        status: TaskStatus.pending,
+      ),
       createdAt: now,
       updatedAt: now,
     );
   }
 
-  // 2. Note Factory
   factory Item.createNote({
     required String id,
     required String workspaceId,
@@ -183,7 +231,7 @@ class Item {
     String contentFormat = 'plain_text',
     String? summary,
     String? categoryId,
-    PrivacyClassification privacy = PrivacyClassification.private,
+    PrivacyClassification? privacy,
   }) {
     final now = DateTime.now().toUtc();
     return Item(
@@ -194,13 +242,15 @@ class Item {
       summary: summary,
       categoryId: categoryId,
       privacy: privacy,
-      noteDetail: NoteDetail(content: content, contentFormat: contentFormat),
+      noteDetail: NoteDetail(
+        content: content,
+        contentFormat: contentFormat,
+      ),
       createdAt: now,
       updatedAt: now,
     );
   }
 
-  // 3. Appointment Factory
   factory Item.createAppointment({
     required String id,
     required String workspaceId,
@@ -209,10 +259,10 @@ class Item {
     DateTime? endTime,
     String? location,
     bool allDay = false,
-    String timezone = 'Asia/Aden',
+    String? timezone,
     String? summary,
     String? categoryId,
-    PrivacyClassification privacy = PrivacyClassification.private,
+    PrivacyClassification? privacy,
   }) {
     final now = DateTime.now().toUtc();
     return Item(
@@ -235,19 +285,18 @@ class Item {
     );
   }
 
-  // 4. Document Factory
   factory Item.createDocument({
     required String id,
     required String workspaceId,
     required String title,
-    required String documentType,
+    String? documentType,
     String? documentNumber,
     String? issuingAuthority,
     DateTime? issueDate,
     DateTime? expiryDate,
     String? summary,
     String? categoryId,
-    PrivacyClassification privacy = PrivacyClassification.private,
+    PrivacyClassification? privacy,
   }) {
     final now = DateTime.now().toUtc();
     return Item(
@@ -270,7 +319,6 @@ class Item {
     );
   }
 
-  // 5. Generic Unified Item Factory
   factory Item.createUnified({
     required String id,
     required String workspaceId,
@@ -278,7 +326,7 @@ class Item {
     required String title,
     String? summary,
     String? categoryId,
-    PrivacyClassification privacy = PrivacyClassification.private,
+    PrivacyClassification? privacy,
     TaskDetail? taskDetail,
     NoteDetail? noteDetail,
     AppointmentDetail? appointmentDetail,
@@ -304,32 +352,55 @@ class Item {
     );
   }
 
-  bool get isDeleted => deletedAt != null;
-  bool get isTask => itemType == ItemType.task;
-  bool get isNote => itemType == ItemType.note;
-  bool get isAppointment => itemType == ItemType.appointment;
-  bool get isDocument => itemType == ItemType.document;
-  bool get isDebt => itemType == ItemType.debt;
-  bool get isShopping => itemType == ItemType.shopping;
+  Item copyWith({
+    String? title,
+    String? summary,
+    Priority? priority,
+    bool? isCompleted,
+    DateTime? dueDate,
+    PrivacyClassification? privacy,
+    String? categoryId,
+    String? voiceFilePath,
+    int? voiceDurationMs,
+    TaskDetail? taskDetail,
+    NoteDetail? noteDetail,
+    AppointmentDetail? appointmentDetail,
+    DocumentDetail? documentDetail,
+    ShoppingListDetail? shoppingListDetail,
+    int? entityVersion,
+    DateTime? deletedAt,
+    DateTime? updatedAt,
+  }) {
+    TaskDetail? updatedTaskDetail = taskDetail ?? this.taskDetail;
+    if (priority != null || isCompleted != null || dueDate != null) {
+      updatedTaskDetail = (updatedTaskDetail ?? const TaskDetail()).copyWith(
+        priority: priority,
+        dueDate: dueDate,
+        status: isCompleted != null
+            ? (isCompleted ? TaskStatus.completed : TaskStatus.pending)
+            : updatedTaskDetail?.status,
+      );
+    }
 
-  Item markDeleted() {
     return Item(
       id: id,
       workspaceId: workspaceId,
       itemType: itemType,
-      title: title,
-      summary: summary,
-      privacy: privacy,
-      categoryId: categoryId,
-      taskDetail: taskDetail,
-      appointmentDetail: appointmentDetail,
-      noteDetail: noteDetail,
-      documentDetail: documentDetail,
-      shoppingListDetail: shoppingListDetail,
+      title: title ?? this.title,
+      summary: summary ?? this.summary,
+      privacy: privacy ?? this.privacy,
+      categoryId: categoryId ?? this.categoryId,
+      voiceFilePath: voiceFilePath ?? this.voiceFilePath,
+      voiceDurationMs: voiceDurationMs ?? this.voiceDurationMs,
+      taskDetail: updatedTaskDetail,
+      noteDetail: noteDetail ?? this.noteDetail,
+      appointmentDetail: appointmentDetail ?? this.appointmentDetail,
+      documentDetail: documentDetail ?? this.documentDetail,
+      shoppingListDetail: shoppingListDetail ?? this.shoppingListDetail,
+      entityVersion: entityVersion ?? this.entityVersion,
+      deletedAt: deletedAt ?? this.deletedAt,
       createdAt: createdAt,
-      updatedAt: DateTime.now().toUtc(),
-      deletedAt: DateTime.now().toUtc(),
-      entityVersion: entityVersion + 1,
+      updatedAt: updatedAt ?? DateTime.now().toUtc(),
     );
   }
 }
